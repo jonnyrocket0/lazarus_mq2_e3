@@ -490,7 +490,7 @@ SUB BuildSpellArray(ArrayName, NewArrayName)
 		/if (${printAll}) /echo MinHP ${${NewArrayName}[${i},${iMinHP}]}	
 
 		| get HealPct
-		/if (${Select[${ArrayName},tankHeals,importantHeals,allHeals,hotSpells,groupHeals,lifeSupport,petHeal,petHeals,lifeTaps]}) {
+		/if (${Select[${ArrayName},tankHeals,importantHeals,allHeals,hotSpells,groupHeals,lifeSupport,petHeal,petHeals,lifeTaps,xtargetHeals]}) {
 			/if (${${ArrayName}[${i}].Find[/HealPct|]}) {
 				/call argueString HealPct| "${${ArrayName}[${i}]}"
 				/varset ${NewArrayName}[${i},${iHealPct}] ${c_argueString}
@@ -835,6 +835,7 @@ SUB ClearCursor
 	/declare i int local 1
   :check_cursor
 	/if (${Cursor.ID}) {
+	/bc AutoInventory Item: ${Cursor} 
     /autoinventory
     /if (${i} > 5) {
       /beep

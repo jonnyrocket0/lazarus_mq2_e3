@@ -64,7 +64,7 @@ Sub e3_Cast(int targetID, ArrayName, int ArrayIndex)
     }
   }
 	|- Check the Immune List
-	/if (${Select[${pendingCastID}_${castTargetName},${immuneList}]}) {
+	/if (${Select[${pendingCastID}_${castTargetName},${immuneList}]} && !${pendingCast.Equal[${spammableSpell}]}) {
 		/varset castReturn CAST_IMMUNE
     /if (${Debug} || ${Debug_Casting}) /echo SkipCast-Immune ${pendingCast} ${pendingCastID} ${Spawn[id ${targetID}].Name} ${targetID}
 		/goto :skipCast 		
@@ -338,6 +338,7 @@ Sub check_Ready(ArrayName, int ArrayIndex)
   } else /if (${${ArrayName}[${ArrayIndex},${iCastType}].Equal[Ability]}) {
     /if (${Me.AbilityReady[${${ArrayName}[${ArrayIndex},${iCastName}]}]}) /varset c_Ready TRUE
   }
+
   /if (${Debug} || ${Debug_Casting}) /echo |- check_Ready <= ${c_Ready}
 /RETURN ${c_Ready}
 
@@ -398,8 +399,10 @@ Sub check_Mana(ArrayName, int ArrayIndex)
 |- Interrupt a spell when appropriate		    -|
 |------------------------------------------------|
 Sub interrupt
-	/varset interruptFlag TRUE
-	/interrupt
+    /varset interruptFlag TRUE
+    /if (!${NetBots[${Me.Name}].Mounted}) {
+        /interrupt
+    } 
 /return
 
 |~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -485,7 +488,6 @@ Sub casting_Setup
   /varset vetArray[${iExpedient}] "Expedient Recovery"
   /varset vetArray[${iJester}]    "Chaotic Jester"
   /call BuildSpellArray "vetArray" "vetArray2D"
-
 /if (${Debug} || ${Debug_Casting}) /echo <== casting_Setup -|
 /return
 
