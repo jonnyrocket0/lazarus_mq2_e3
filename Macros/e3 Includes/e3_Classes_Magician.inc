@@ -21,9 +21,9 @@ sub event_petWeapons(line, ChatSender)
   } else /if (!${SpawnCount[${c_eventArgChatSender}]}) {
     /echo ${c_eventArgChatSender} is not in the zone
     /if (${c_eventArgChatSender.NotEqual[${Me}]}) /tell ${c_eventArgChatSender} We are not in the same zone...
-  } else /if (!${singlePet} && !${SpawnCount[pcpet radius 50]}) {
-      /echo There are no PC Pets withing a radius of 50
-      /if (${c_eventArgChatSender.NotEqual[${Me}]}) /tell ${c_eventArgChatSender} No pets a radius of 50...
+  } else /if (!${singlePet} && !${SpawnCount[pcpet radius 100]}) {
+      /echo There are no PC Pets withing a radius of 100
+      /if (${c_eventArgChatSender.NotEqual[${Me}]}) /tell ${c_eventArgChatSender} No pets a radius of 100...
   } else /if (${singlePet} && ${Spawn[${c_eventArgChatSender}].Pet.Distance}>100) {
       /if (${c_eventArgChatSender.NotEqual[${Me}]}) /tell ${c_eventArgChatSender} Your pet is not in a radius of 100...
   } else {
@@ -31,7 +31,7 @@ sub event_petWeapons(line, ChatSender)
     /declare originalLoc string local ${Me.Loc}
     /declare p int local
     |if distribute, give to everyone, else just give to the single chatsender
-    /for p 1 to ${SpawnCount[pcpet radius 50]}
+    /for p 1 to ${SpawnCount[pcpet radius 100]}
       /if (!${NearestSpawn[${p},pcpet].Name.Find[familiar]}) {
         |/echo ${p} ${NearestSpawn[${p},pcpet]} ${NearestSpawn[${p},pcpet].Name} ${NearestSpawn[${p},pcpet].Master} ${c_eventArgChatSender}
         |/echo los ${NearestSpawn[${p},pcpet].LineOfSight} d ${Bool[${line.Find[Distribute]}]}
@@ -53,10 +53,7 @@ sub event_petWeapons(line, ChatSender)
     }
 
     /if (${Math.Distance[${originalLoc}]}>20) /call MoveToLoc ${originalLoc} 50 20
-    /if (${c_eventArgChatSender.NotEqual[${Me}]}) {
-		/delay 1s
-		/tell ${c_eventArgChatSender} Finished arming pets. If anything is missing, ask for it directly. Ex: "/tell ${Me.CleanName} Grant Spectral Plate".
-	}
+    /if (${c_eventArgChatSender.NotEqual[${Me}]}) /tell ${c_eventArgChatSender} Finished arming pets
     /varset Following ${wasFollowing}
   }
   |/varset Debug_MAG FALSE
@@ -130,9 +127,6 @@ SUB give_PetsWeapons(autoWeap)
               }
             } else {
               :WaitAccept_Loop
-			  /if (${c_eventArgChatSender.NotEqual[${Me}]}) {
-				/tell ${Spawn[id ${petIDArray[${p}]}].Master} ---Giving "${petItems2D[${w},${iCastName}]}" to ${Spawn[id ${petIDArray[${p}]}].CleanName}.
-			  }
               /notify GiveWnd GVW_Give_Button LeftMouseUp
               /delay 1s !${Window[GiveWnd].Open}
               /if (${Window[GiveWnd].Open}) {
@@ -267,8 +261,6 @@ SUB MAG_Setup
   /declare coh_dist int outer 150
 	/call iniToVarV "${Character_Ini},Magician,Auto-Pet Weapons (On/Off)" autoWeapons bool outer
 	/call IniToArrayV "${Character_Ini},Magician,Summoned Pet Item#" petItems
-  /call iniToVarV "${Character_Ini},Magician,Auto-Summon Orb of Mastery (On/Off)" autoOrbOfMastery bool outer
-
 	/declare mageRangedSwap bool outer FALSE
 	/if (${Defined[petItems]}) /call BuildSpellArray "petItems"	"petItems2D"
 
@@ -281,14 +273,6 @@ SUB MAG_Setup
     /declare moltenOrb[1] string outer Summon: Molten Orb
     /call BuildSpellArray "moltenOrb" "moltenOrb2D"
   }
-
-  | Orb of Mastery must be enabled and the toon must have the spell
-  /if (${autoOrbOfMastery} && ${Bool[${Me.Book[Summon Orb]}]}) {
-    /varset autoOrbOfMastery TRUE
-  } else {
-    /varset autoOrbOfMastery FALSE
-  }
-
 /if (${Debug} || ${Debug_MAG}) /echo <== MAG_Setup -|
 /RETURN
 |----------------------------------------------------------------------------|
@@ -302,15 +286,12 @@ SUB MAG_MacroSettings
 	/call WriteToIni "${advSettings_Ini},MAG Functions,MAG Function#6" "check_Ae" 1
 	/call WriteToIni "${advSettings_Ini},MAG Functions,MAG Function#7" "check_Nukes" 1
 	/call WriteToIni "${advSettings_Ini},MAG Functions,MAG Function#8" "check_SummonItems" 1
-  /call WriteToIni "${advSettings_Ini},MAG Functions,MAG Function#9" "check_OrbOfMasteryCharges" 1
-  /call WriteToIni "${advSettings_Ini},MAG Functions,MAG Function#10" "check_Food" 1
 /if (${Debug}) /echo <== MAG_MacroSettings -|
 /RETURN
 |----------------------------------------------------------------------------|
 SUB MAG_CharacterSettings
 /if (${Debug}) /echo |- MAG_CharacterSettings ==>
 	/call WriteToIni "${Character_Ini},Magician,Auto-Pet Weapons (On/Off)"
-  /call WriteToIni "${Character_Ini},Magician,Auto-Summon Orb of Mastery (On/Off)"
 	/call WriteToIni "${Character_Ini},Magician,Summoned Pet Item"
 /if (${Debug}) /echo <== MAG_CharacterSettings -|
 /RETURN
@@ -335,37 +316,4 @@ SUB MAG_Background_Events
 **|
   /doevents auto_coh
   /doevents petWeapons
-/RETURN
-
-|----------------------------------------------------------------------------|
-| Destroy Orb of Mastery when it's out of charges and immediately summon a new one
-| To enable:
-| Add to MAG's Advanced Settings.ini
-| [Magician]
-| Auto-Summon Orb of Mastery (On/Off)=On
-|----------------------------------------------------------------------------|
-SUB check_OrbOfMasteryCharges 
-  /if (!${autoOrbOfMastery}) /return 
-  | Nothing on the cursor
-  /if (!${Assisting} && !${Me.CombatState.Equal[Combat]} && !${Bool[${Cursor.ID}]}) {
-    | if orb of mastery has 0 charges
-    /if (${Bool[${FindItem[=Orb of Mastery]}]} && ${FindItem[=Orb of Mastery].Charges} == 0 ) {
-      /docommand ${ChatToggle} Orb of Mastery is out of charges, destroying it
-      /call SwapItem "Orb of Mastery" "Cursor"
-      | double check that the item on the cursor is the Orb of Mastery
-      /if (${Cursor.Name.Equal[Orb of Mastery]}) {
-        /destroy
-      }
-    }
-    | if toon has no orb of mastery
-    /if (!${Bool[${FindItem[=Orb of Mastery]}]}) {
-      /docommand ${ChatToggle} No Orb of Mastery in inventory, summoning an Orb of Mastery
-      /casting "Summon Orb"
-      /delay 12s ${Cursor.ID}
-      /while (${Cursor.ID}) {
-        /autoinv
-        /delay 1s
-      }
-    }    
-  }  
 /RETURN

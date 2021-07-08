@@ -12,15 +12,22 @@ SUB event_Chat(ChatChannel, ChatSender, ChatText)
 	/declare whatToCast string local
 	/declare retryCastTimer timer local 30s
 	/declare aliasMaxTries int local 0
-
   | If the ChatText is not found in the spellbook, check SpellAliases_Ini.
   :Retry_Alias
-
   /if (${aliasMaxTries}<=3) {
 		/if (${Me.Book[${ChatText}]}) {
 			/varset whatToCast ${Spell[${ChatText}]}
 		} else /if (${FindItemCount[=${ChatText}]}) {
 			/varset whatToCast ${FindItem[=${ChatText}]}
+		} else /if (${Me.AltAbility[${ChatText}]}) {
+			/if (!${Me.AltAbilityReady[${ChatText}]}) {
+				/declare readyIn int local
+				/varcalc readyIn ${Me.AltAbilityTimer[${ChatText}]} / 60000 + 1
+				/tell ${ChatSender} ${ChatText} is not ready, please try again in ${readyIn} minutes.
+				/return
+			} else {
+				/varset whatToCast ${ChatText}
+			}
 		} else {
 			| Replace :'s with ;'s to adjust for inis
 			/if (${ChatText.Find[:]}) /varset ChatText ${ChatText.Replace[:,;]}
@@ -92,20 +99,9 @@ SUB event_Chat(ChatChannel, ChatSender, ChatText)
       }
       /return
     }
-
-	| Check if caster is invisible
-    /if (${Me.Invis}) {
-		/if (${ChatChannel.Equal[TELL]}) {
-			/tell ${ChatSender} I'm sorry, I'm invisible and cannot cast buffs right now.
-		} else {
-			/g I am Invis!
-		}
-    	/return
-    } 
-
     :retryCast
     | Check Mana
-    |/echo cs ${ChatSender} csID ${Spawn[pc =${ChatSender}].ID} spell ${begBuffArray2D[1,${iSpellName}]}
+    /echo cs ${ChatSender} csID ${Spawn[pc =${ChatSender}].ID} spell ${begBuffArray2D[1,${iSpellName}]}
     /if (!${check_Mana["begBuffArray2D",1]}) {
       /if (${retryCastTimer} && !${Me.CombatState.Equal[COMBAT]}) {
         /if (${Me.Standing} && !${Me.Casting.ID}) /sit
@@ -155,9 +151,7 @@ SUB event_Chat(ChatChannel, ChatSender, ChatText)
 |--------------------------------------------------------|
 #event buffRequestRelay "#1# tells you, 'Buff #*#"
 SUB event_buffRequestRelay(line, ChatSender, eventParams)
-  /declare chatSenderLevel int local 70
-
-  /if (${Debug} || ${Debug_BegForBuffs}) /echo |- event_buffRequestRelay ==>
+/if (${Debug} || ${Debug_BegForBuffs}) /echo |- event_buffRequestRelay ==>
   /if (!${NetBots[${ChatSender}].ID}) {
     /if (!${allow_BuffRequests}) {
       /tell ${ChatSender} Sorry, I'm not buffing right now.
@@ -178,20 +172,11 @@ SUB event_buffRequestRelay(line, ChatSender, eventParams)
     /tell ${ChatSender} You're out of range!
     /return
   }
-
-	| Check if caster is invisible
-	/if (${Me.Invis}) {
-		/tell ${ChatSender} I'm sorry, I'm invisible and cannot cast buffs right now.
-		/return
-	} 
-
   | -------------------Find buffTarget------------------- |
   /declare buffTarget string local ${line.Right[-${Math.Calc[${line.Find[buff]}+4]}].Left[-1]}
-  /varset buffTarget ${buffTarget.Replace[please,]}
-
   /if (${Int[${buffTarget}]}) {
     /varset buffTarget ${Spawn[id ${buffTarget}].ID}
-  } else /if (${buffTarget.Equal[me]} || ${buffTarget.Equal[ me]} || ${buffTarget.Equal[me ]}) {
+  } else /if (${buffTarget.Equal[me]}) {
     /varset buffTarget ${Spawn[pc =${ChatSender}].ID}
   } else /if (${buffTarget.Find['s pet]}) {
     /varset buffTarget ${Spawn[pc =${buffTarget.Left[-6]}].Pet.ID}
@@ -203,14 +188,20 @@ SUB event_buffRequestRelay(line, ChatSender, eventParams)
     /varset buffTarget ${Spawn[=${buffTarget}].ID}
   }
 
-  /if (${Bool[${Spawn[${buffTarget}]}]}) {
-    /varset chatSenderLevel ${Spawn[${buffTarget}].Level}
-    /echo buffreq level ${chatSenderLevel}
-
-	/tell ${ChatSender} Casting buffs on ${Spawn[id ${buffTarget}].CleanName}...
+  /if (${Defined[GroupBuffs2D]} && ${Bool[${buffTarget}]}) {
+    /tell ${ChatSender} Casting buffs on ${Spawn[id ${buffTarget}].CleanName}...
     /bc Buff ${buffTarget}
+  | If I don't have buffs, but others might.
+  } else /if (!${Defined[GroupBuffs2D]}) {
+    /if (${NetBots.Counts}>1) {
+      /tell ${ChatSender} Requesting buffs on ${Spawn[id ${buffTarget}].CleanName}...
+      /bc Buff ${buffTarget}
+  | If I'm not a buffer, and no other bots are on.
+    } else  {
+      /tell ${ChatSender} Sorry, my ini are not set up to cast group buffs
+    }
   }
-  /if (${Debug} || ${Debug_BegForBuffs}) /echo <== event_buffRequestRelay -|
+/if (${Debug} || ${Debug_BegForBuffs}) /echo <== event_buffRequestRelay -|
 /RETURN
 
 |------------------------------------------------------------------------|
@@ -431,7 +422,6 @@ SUB MakeSpellAliases_Ini
 	/call WriteToIni "${SpellAliases_Ini},Enchanter,C4" "Koadic's Endless Intellect"
 	/call WriteToIni "${SpellAliases_Ini},Enchanter,GoD" "Guard of Druzzil"
 	/call WriteToIni "${SpellAliases_Ini},Enchanter,CHA" "Radiant Visage"
-  /call WriteToIni "${SpellAliases_Ini},Enchanter,Speed of the Shissar" "Staff of the Serpent"
 	
 	| Magician Aliases.
 	/call WriteToIni "${SpellAliases_Ini},Magician,Magician Spells"

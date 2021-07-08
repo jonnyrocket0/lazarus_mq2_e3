@@ -16,7 +16,7 @@ SUB event_manastone
 |----------------------------------------------------------------------------|
 SUB check_Yaulp
 /if (${Debug}) /echo |- check_clrYaulp ==>
-  /if (${AutoYaulp} && !${medBreak} && !${Me.Moving})  {
+  /if (${AutoYaulp} && !${medBreak})  {
     /declare castName string local ${yaulpSpell.Arg[1,/]}
     /if (!${Bool[${Me.Buff[${castName}]}]} && ${Me.PctMana} < 95 && ${Spell[${castName}].NewStacks}) {
       /if (${Target.ID}) /declare tempTarget int local ${Target.ID}
@@ -356,18 +356,17 @@ Sub CLR_Setup
 SUB CLR_MacroSettings
 /if (${Debug}) /echo |- CLR_MacroSettings ==>
   /call WriteToIni "${advSettings_Ini},CLR Functions,CLR Function#1" "check_DivineArb" 1
-  /call WriteToIni "${advSettings_Ini},CLR Functions,CLR Function#2" "check_healChain" 1
-  /call WriteToIni "${advSettings_Ini},CLR Functions,CLR Function#3" "check_Heals" 1
-  /call WriteToIni "${advSettings_Ini},CLR Functions,CLR Function#4" "check_Cures" 1
-  /call WriteToIni "${advSettings_Ini},CLR Functions,CLR Function#5" "check_celestialRegen" 1
-  /call WriteToIni "${advSettings_Ini},CLR Functions,CLR Function#6" "check_Buffs" 1
-  /call WriteToIni "${advSettings_Ini},CLR Functions,CLR Function#7" "check_Burns" 1
-  /call WriteToIni "${advSettings_Ini},CLR Functions,CLR Function#8" "check_Yaulp" 1
+  /call WriteToIni "${advSettings_Ini},CLR Functions,CLR Function#2" "check_Burns" 1
+  /call WriteToIni "${advSettings_Ini},CLR Functions,CLR Function#3" "check_Yaulp" 1
+  /call WriteToIni "${advSettings_Ini},CLR Functions,CLR Function#4" "check_celestialRegen" 1
+  /call WriteToIni "${advSettings_Ini},CLR Functions,CLR Function#5" "check_healChain" 1
+  /call WriteToIni "${advSettings_Ini},CLR Functions,CLR Function#6" "check_Heals" 1
+  /call WriteToIni "${advSettings_Ini},CLR Functions,CLR Function#7" "check_Cures" 1
+  /call WriteToIni "${advSettings_Ini},CLR Functions,CLR Function#8" "check_Buffs" 1
   /call WriteToIni "${advSettings_Ini},CLR Functions,CLR Function#9" "check_Debuffs" 1
   /call WriteToIni "${advSettings_Ini},CLR Functions,CLR Function#10" "check_Nukes" 1
-  /call WriteToIni "${advSettings_Ini},CLR Functions,CLR Function#11" "check_Pets" 1
-  /call WriteToIni "${advSettings_Ini},CLR Functions,CLR Function#12" "check_SummonItems" 1
-  /call WriteToIni "${advSettings_Ini},CLR Functions,CLR Function#13" "check_Food" 1
+  /call WriteToIni "${advSettings_Ini},CLR Functions,CLR Function#4" "check_Pets" 1
+  /call WriteToIni "${advSettings_Ini},CLR Functions,CLR Function#8" "check_SummonItems" 1
 /if (${Debug}) /echo <== CLR_MacroSettings -|
 /RETURN
 |----------------------------------------------------------------------------|
@@ -504,10 +503,9 @@ SUB give_PetsHammer(autoWeap)
           :SummonWeap_Loop
           /if (${petItems2D[${w},${iCastName}].Equal["Blazing Stone of Demise"]} && ${FindItemCount[=Summoned: Burning Shank]}) {
             /call SwapItem "Summoned: Burning Shank" "Cursor"
-          } else /if (${Bool[${FindItem[=${petItems2D[${w},${iCastName}]}]}]}) {
-            /ItemNotify "${petItems2D[${w},${iCastName}]}" leftmouseup
-          } else /if (${Bool[${FindItem[=Summoned: ${petItems2D[${w},${iCastName}]}]}]}) {
-            /ItemNotify "Summoned: ${petItems2D[${w},${iCastName}]}" leftmouseup
+          |fix me later
+          |} else /if (${FindItemCount[${petItems2D[${w},${iCastName}].Replace[Summon ,]}]}) {
+          |  /call SwapItem "${petItems2D[${w},${iCastName}].Replace[Summon ,]}" "Cursor"
           } else {
             /call check_Ready "petItems2D" ${w}
             /if (${c_Ready}) {
@@ -607,26 +605,6 @@ SUB check_SummonItems
 /if (${Debug} || ${Debug_CLR}) /echo <== check_SummonItems -|
 /RETURN
 |----------------------------------------------------------------------------|
-#event playerHammer "#1# tells you, 'player Hammer#*#'"
-#event playerHammer "<#1#> Player Hammer#*#"
-sub event_playerHammer(line, ChatSender)
-/echo |- event_playerHammer ==>
-      /target ${ChatSender}
-	  /tell ${ChatSender} You need to be right next to me, the script doesn't make me come to you.
-      /delay 3
-	  /if (${Bool[${FindItem[=Hammer of Damnation]}]}) {
-        /ItemNotify "Hammer of Damnation" leftmouseup
-      } else {
-		/cast "Hammer of Damnation"
-	  }
-      /delay 6s ${Cursor.ID}
-      /click left target
-      /delay 1s ${Window[GiveWnd].Open}
-	  /notify GiveWnd GVW_Give_Button LeftMouseUp
-	  /delay 4s
-	  /if (${Cursor.ID}) /call ClearCursor
-/return
-|----------------------------------------------------------------------------|
 Sub CLR_Background_Events
 |**
         /if (${Bool[${Me.AltAbility[Companion of Necessity]}]} && ${Me.AltAbilityReady[Companion of Necessity]}) {
@@ -644,5 +622,4 @@ Sub CLR_Background_Events
   /doevents AE_Rez
   /doevents Rez
   /doevents manastone
-  /doevents playerHammer
 /return

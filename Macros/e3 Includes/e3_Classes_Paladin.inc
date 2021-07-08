@@ -17,7 +17,6 @@ SUB PAL_MacroSettings
 	/call WriteToIni "${advSettings_Ini},PAL Functions,PAL Function#5" "check_Cures" 1
 	/call WriteToIni "${advSettings_Ini},PAL Functions,PAL Function#6" "check_Buffs" 1
 	/call WriteToIni "${advSettings_Ini},PAL Functions,PAL Function#7" "check_Nukes" 1
-	/call WriteToIni "${advSettings_Ini},PAL Functions,PAL Function#8" "check_Food" 1
 
 /if (${Debug}) /echo <== PAL_MacroSettings -|
 /RETURN
@@ -26,6 +25,7 @@ SUB PAL_CharacterSettings
 /if (${Debug}) /echo |- PAL_CharacterSettings ==>
 	/call WriteToIni "${Character_Ini},Paladin,Auto-Yaulp (On/Off)" Off
 	/call WriteToIni "${Character_Ini},Paladin,Yaulp Spell"
+
 /if (${Debug}) /echo <== PAL_CharacterSettings -|
 /RETURN
 |----------------------------------------------------------------------------|

@@ -5,7 +5,7 @@ SUB check_Lich
   /if (${Debug}) /echo |- check_castLich ==>
   |/echo in checklich  ${lichSpell2D[1,${iMinHP}]}, ${Me.PctHPs} ${Me.Buff[${lichSpell2D[1,${iSpellName}]}]}
   /if (${Defined[lichSpell2D]}) {
-    /if (${Me.PctHPs} <= 25 || ${lichSpell2D[1,${iMinHP}]} >= ${Me.PctHPs}) {
+    /if (${Me.PctHPs} <= 10) {
       /if (${Bool[${Me.Buff[${lichSpell2D[1,${iSpellName}]}]}]}) {
         /echo Removing Lich due to low HP
         /removebuff ${lichSpell2D[1,${iSpellName}]}
@@ -106,7 +106,6 @@ SUB NEC_MacroSettings
 	/call WriteToIni "${advSettings_Ini},NEC Functions,NEC Function#8" "check_Nukes" 1
 	/call WriteToIni "${advSettings_Ini},NEC Functions,NEC Function#9" "check_Buffs" 1
 	/call WriteToIni "${advSettings_Ini},NEC Functions,NEC Function#10" "check_Pets" 1
-  /call WriteToIni "${advSettings_Ini},NEC Functions,NEC Function#11" "check_Food" 1
 /if (${Debug}) /echo <== NEC_MacroSettings -|
 /return
 |----------------------------------------------------------------------------|

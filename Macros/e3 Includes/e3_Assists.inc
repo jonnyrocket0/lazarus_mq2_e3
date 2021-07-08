@@ -81,9 +81,6 @@ SUB event_Assist(line, ChatSender, int MobID)
           } else {
             /squelch /stick hold moveback ${RangedStickDistance}
           }
-        } else /if (${AssistType.Equal[off]}) {
-          | Face the target for less dmg and stun resist for Ogres
-          /squelch /face fast id ${AssistTarget}
         }
       /if (${Debug} || ${Debug_Assists}) /echo Assist=${Assisting} || AssistTarget=${AssistTarget} || AllowControl=${AllowControl}
       }
@@ -215,7 +212,7 @@ SUB check_AssistStatus
         | If I am target of target and not sticking to front(tank) attack/stick off
         | If I am < 50% life turn off attack (unless tank/stick front)
         /if (${Me.TargetOfTarget.CleanName.Equal[${Me.CleanName}]} && ${AssistStickPoint.NotEqual[front]}) {
-          /if (${Me.PctHPs} < 80 && !${Bool[${Select[${Me.TargetOfTarget.Class.ShortName},WAR,PAL,SHD]}]}) /attack off
+          /if (${Me.PctHPs} < 80 ) /attack off
           /stick off
         } else {
           | If the mob is not targeting me
@@ -266,25 +263,11 @@ SUB CombatAbilities
     /if (${doTaunt} && ${Me.AbilityReady[Taunt]} && ${Me.PctAggro}< 100) /doability Taunt
   }
   /if (${Defined[smartTaunt]}) {
-    /if (${smartTaunt}) {
+    /if (${smartTaunt} && ${Me.AbilityReady[Taunt]}) {
       /if (${Bool[${Me.TargetOfTarget}]} && !${Select[${Me.TargetOfTarget.Class.ShortName},WAR,PAL,SHD]}) {
         /if (${Select[${Spawn[id ${Target.ID}].Type},${AcceptableTargetTypes}]}) {
-          /if (${Me.AbilityReady[Taunt]}) {
-            /bc Taunting ${Target.CleanName}: ${Me.TargetOfTarget.Class.ShortName}-${Me.TargetOfTarget} has aggro
-            /doability Taunt
-          |} else /if (${Me.CombatAbilityReady[Mock]}) {
-          |  /bc Mock on ${Target.CleanName}: ${Me.TargetOfTarget.Class.ShortName}-${Me.TargetOfTarget} has aggro
-          |  /doability Mock
-          | } else /if (${Me.CombatAbilityReady[Bazu Bellow]}) {
-          |  /bc Bazu Bellow on ${Target.CleanName}: ${Me.TargetOfTarget.Class.ShortName}-${Me.TargetOfTarget} has aggro
-          |   /doability "Bazu Bellow"
-          } else /if (${Me.AltAbilityReady[Divine Stun]}) {
-            /bc Divine Stun on ${Target.CleanName}: ${Me.TargetOfTarget.Class.ShortName}-${Me.TargetOfTarget} has aggro
-            /casting "Divine Stun"
-          } else /if (${Me.SpellReady[Terror of Discord]}) {
-            /bc Terror of Discord on ${Target.CleanName}: ${Me.TargetOfTarget.Class.ShortName}-${Me.TargetOfTarget} has aggro
-            /casting "Terror of Discord"
-          }
+          /bc Taunting ${Target.CleanName}: ${Me.TargetOfTarget.Class.ShortName}-${Me.TargetOfTarget} has aggro
+          /doability Taunt
         }
       }
     }
@@ -294,8 +277,8 @@ SUB CombatAbilities
   }
 
   /for i 1 to ${Abilities2D.Size[1]}
-    |skip the ability if current aggro is less than defined PctAggro
-    /if (${Abilities2D[${i},${iPctAggro}]} > 0 && (${Me.PctAggro} < ${Abilities2D[${i},${iPctAggro}]})) {
+    |skip the ability if current aggro is less than defined PctAggro or the taret is not a Named
+    /if (${Abilities2D[${i},${iPctAggro}]} > 0 && (${Me.PctAggro} < ${Abilities2D[${i},${iPctAggro}]} || !${Target.Named})) {
       /if (${Debug} || ${Debug_Assists}) /echo skipping ${Abilities2D[${i},${iCastName}]}, current aggro ${Me.PctAggro} defined ${Abilities2D[${i},${iPctAggro}]} named ${Target.Named}
       /goto :skipAbility
     }
@@ -311,6 +294,7 @@ SUB CombatAbilities
     } else /if (${Abilities2D[${i},${iCastType}].Equal[AA]}) {
       /if (${Me.AltAbilityReady[${Abilities2D[${i},${iCastName}]}]}) {
         /casting "${Abilities2D[${i},${iCastName}]}" alt
+        /alt act ${AltAbility[${Abilities2D[${i},${iCastName}]}].ID}
         /delay 3 !${Me.AltAbilityReady[${Abilities2D[${i},${iCastName}]}]}
       }
       |- Discipline, no disc with a duration can go here
@@ -318,7 +302,7 @@ SUB CombatAbilities
     |/echo car ${Me.CombatAbilityReady[${abilityName}]} ${Me.CombatAbility[${abilityName}]} ${abilityName} ${Me.CombatAbilityReady[${abilityName}]} ${Me.CombatAbilityReady[Backstab]}
       /if (${Me.CombatAbilityReady[${Abilities2D[${i},${iCastName}]}]}) {
         |/echo ${Abilities2D[${i},${iCastName}]} myend ${Me.PctEndurance} >= minend ${Abilities2D[${i},${iMinEnd}]} and endcost ${Spell[${Abilities2D[${i},${iCastName}]}].EnduranceCost} <= ${Me.Endurance}
-        /if (${Me.PctEndurance} >= ${Abilities2D[${i},${iMinEnd}]} && ${Spell[${Abilities2D[${i},${iCastName}]}].EnduranceCost} <= ${Me.Endurance} && ${Abilities2D[${i},${iIfs}]}) {
+        /if (${Me.PctEndurance} >= ${Abilities2D[${i},${iMinEnd}]} && ${Spell[${Abilities2D[${i},${iCastName}]}].EnduranceCost} <= ${Me.Endurance}) {
           |/echo ready ${abilityName} ${Me.CombatAbilityReady[${abilityName}]}
           /disc ${Abilities2D[${i},${iCastName}]}
           /delay 3 !${Me.CombatAbilityReady[${Abilities2D[${i},${iCastName}]}]}
@@ -337,10 +321,7 @@ SUB CombatAbilities
 #event EnrageOn "#1# has become ENRAGED."
 SUB Event_EnrageOn(line, RageOn)
   /if (${Target.ID} == ${Spawn[${RageOn}].ID}) /varset isEnraged TRUE
-  /if (${Me.Pet.ID}) {
-    /pet back off
-    /echo ${Me.Name} is backing off pet for enrage
-  } 
+  /if (${Me.Pet.ID}) /pet back off
 /RETURN
 |------------------------------------------------|
 |- Turns attack back on, after enrage is over.	-|
@@ -469,20 +450,7 @@ SUB check_Nukes
         }
       }
 
-      | fix for using Ifs in Nukes, retarget to the AssistTarget before checking Ifs
-  	  /if (${Target.ID} != ${AssistTarget}) /call TrueTarget ${AssistTarget}
-	  
       /call check_Ready "Nukes2D" ${castIndex}
-	  
-	  /if (${Debug} || ${Debug_Assists}) {
-		/echo Checking Nuke ${Nukes2D[${castIndex},${iIfs}]}
-		/echo Mana ${check_Mana["Nukes2D",${castIndex}]}
-		/echo Target  ${AssistTarget}
-		/echo Cast index ${castIndex}
-		/echo Check Distance ${check_Distance[${AssistTarget},${Nukes2D[${s},${iMyRange}]}]}
-		/echo Range ${Nukes2D[${s},${iMyRange}]}
-	  }
-	  
       /if (${c_Ready} && ${Nukes2D[${castIndex},${iIfs}]}) {
         /if (${check_Mana["Nukes2D",${castIndex}]}) {
           /if (${check_Distance[${AssistTarget},${Nukes2D[${s},${iMyRange}]}]}) {
@@ -502,36 +470,6 @@ SUB check_Nukes
 /if (${Debug} || ${Debug_Assists}) /echo <== check_Nukes -|
 /RETURN
 
-|--------------------------------------------------------------------------------|
-| Author: Sirhopsalot
-| Casts spells on the non-assist target (but only while assist is active)
-| this is useful for casting dots / debuffs on the non-assist targets 
-| when you know the main assist target will be dead soon
-|--------------------------------------------------------------------------------|
-SUB check_OffAssistSpells
-  | If we're not currently attacking something, don't do anything
-  /if (!${Assisting}) /return
-  | loop through the xtargets checking if any match our criteria
-  | break on the first one that matches
-  /declare pctAggro int local 80
-  /declare minHp int local 10
-  /declare highestHp int local 0
-  /declare mobId int local 0
-  /declare i int local
-  /for i 1 to 13
-    /if (${Bool[${Me.XTarget[${i}]}]} && ${Me.XTarget[${i}].TargetType.Equal[Auto Hater]} && ${Me.XTarget[${i}].Type.Equal[NPC]} && ${Me.XTarget[${i}].Aggressive} && ${Me.XTarget[${i}].ID} != ${AssistTarget} && ${Me.XTarget[${i}].PctHPs} >= ${minHp} && ${Me.XTarget[${i}].PctAggro} < ${pctAggro} && !${Bool[${Me.XTarget[${i}].Name.Find[Corpse]}]} && ${Me.XTarget[${i}].LineOfSight}) {
-      /if (${Me.XTarget[${i}].PctHPs} > ${highestHp}) {
-        /varset mobId ${Me.XTarget[${i}].ID}
-        /varset highestHp ${Me.XTarget[${i}].PctHPs}
-      }
-    }
-  /next i
-  /if (${Bool[${mobId}]}) {
-    /docommand ${ChatToggle} Casting offtarget spell on ${Spawn[id ${mobId}].Name}
-    /call cast_longTermSpells "${mobId}" "OffAssist_Spells2D"
-  }
-/RETURN
-
 |----------------------------------------------------|
 |- interrupts casting if target is invalid (dead)   -|
 |----------------------------------------------------|
@@ -546,7 +484,6 @@ SUB check_OffAssistSpells
 |----------------------------------------------------|
 SUB check_Debuffs
   /if (${Defined[Command_Debuffs2D]}) /call Debuffs_OnCommand
-  /if (${Defined[All_Debuffs2D]}) /call Debuffs_OnAll
 	/if (${Assisting} && ${Defined[Assist_Debuffs2D]}) /call cast_longTermSpells "${AssistTarget}" "Assist_Debuffs2D"
 /if (${Debug} || ${Debug_Assists}) /echo <== check_Debuffs -|
 /RETURN
@@ -571,11 +508,8 @@ SUB cast_longTermSpells(int spellTarget, string ArrayName)
   /declare spellTimer string local
   /declare spellRecast int local 0
   /declare s int local
-  /declare checkForName string local
 
 	/for s 1 to ${${ArrayName}.Size[1]}
-    /varset checkForName	${${ArrayName}[${s},${iCheckFor}]}
-
 	  |this check lets you use OOW debuff BP in debuff section
 	  /if (${${ArrayName}[${s},${iSpellType}].Find[Beneficial]}) {
 	    /varset spellTarg ${Me.ID}
@@ -598,26 +532,19 @@ SUB cast_longTermSpells(int spellTarget, string ArrayName)
       /call TrueTarget ${spellTarg}
       /delay 5 ${Target.BuffsPopulated}
     }
-    /if (${Bool[${Select[${ArrayName},Command_Debuffs2D,Assist_Debuffs2D,All_Debuffs2D]}]}) {
-      /if (${Target.BuffDuration[${${ArrayName}[${s},${iSpellName}]}]}/1000 > ${longTermRecastTime} && !${${ArrayName}[${s},${iSpellName}].Equal[${spammableSpell}]}) {
+    /if (${Bool[${Select[${ArrayName},Command_Debuffs2D,Assist_Debuffs2D]}]}) {
+      /if (${Target.BuffDuration[${${ArrayName}[${s},${iSpellName}]}]}/1000 > ${longTermRecastTime}) {
         /varcalc spellRecast ${Target.BuffDuration[${${ArrayName}[${s},${iSpellName}]}]}/1000 - ${longTermRecastTime}
         /call createTimer ${spellTimer} ${spellRecast}s
         /echo \ag ${Target.CleanName} already debuffed ${${ArrayName}[${s},${iSpellName}]} recast ${spellRecast}
         /goto :skipCast
       }
-
-      /if (${Target.BuffDuration[${checkForName}]}/1000 > ${longTermRecastTime}) {
-        /varcalc spellRecast ${Target.BuffDuration[${checkForName}]}/1000 - 10
-        /call createTimer ${spellTimer} ${spellRecast}s
-        /echo \ag ${Target.CleanName} already debuffed ${checkForName} recast ${spellRecast}
-        /goto :skipCast
-      }      
     }
     :attemptCast
     /if (!${${ArrayName}[${s},${iIfs}]}) {
         | need to have some sort of timer ... this will skip most encounters but raids will probably allow rechecking if conditions change
         /call createTimer "${spellTimer}" "30s"
-        /if (${Debug} || ${Debug_Assists}) /echo \gy Skipping ${${ArrayName}[${s},${iSpellName}]} due to Ifs on ${Target.CleanName}
+        /echo \gy Skipping ${${ArrayName}[${s},${iSpellName}]} due to Ifs on ${Target.CleanName}
         /goto :skipCast
     }
     /call check_Ready "${ArrayName}" ${s}
@@ -640,7 +567,7 @@ SUB cast_longTermSpells(int spellTarget, string ArrayName)
     |/if (${Debug} || ${Debug_Assists}) /echo castretun ${castReturn} res ${Cast.Result}
     |/if (${Debug} || ${Debug_Assists}) /echo maxtries ${${ArrayName}[${i},${iMaxTries}]} rescount ${resistCount} ${${resistCount}}
     |/if (${Debug} || ${Debug_Assists}) /echo castname ${${ArrayName}[${i},${iCastName}]} stored ${Cast.Stored.Name} return ${castReturn}
-    | If the spell was resisted.	
+    | If the spell was resisted.
     /if (${Cast.Stored.Name.Equal[${${ArrayName}[${s},${iSpellName}]}]} && ${castReturn.Equal[CAST_RESIST]}) {
       /if (!${Defined[${resistCount}]}) {
         /declare ${resistCount} int outer 1
@@ -652,19 +579,19 @@ SUB cast_longTermSpells(int spellTarget, string ArrayName)
         }
       }
     | If the spell did not take hold.
-    } else /if (${Cast.Stored.Name.Equal[${${ArrayName}[${s},${iSpellName}]}]} && ${castReturn.Equal[CAST_TAKEHOLD]} && !${Cast.Stored.Name.Equal[${spammableSpell}]}) {
+    } else /if (${Cast.Stored.Name.Equal[${${ArrayName}[${s},${iSpellName}]}]} && ${castReturn.Equal[CAST_TAKEHOLD]}) {
       /if (${Defined[${resistCount}]}) {
         /deletevar ${resistCount}
       }
       /call createTimer "${spellTimer}" "3m"
       | If the target was immune.
-    } else /if (${Cast.Stored.Name.Equal[${${ArrayName}[${s},${iSpellName}]}]} && ${castReturn.Equal[CAST_IMMUNE]} && !${Cast.Stored.Name.Equal[${spammableSpell}]}) {
+    } else /if (${Cast.Stored.Name.Equal[${${ArrayName}[${s},${iSpellName}]}]} && ${castReturn.Equal[CAST_IMMUNE]}) {
       /if (${Defined[${resistCount}]}) {
         /deletevar ${resistCount}
       }
       /call createTimer "${spellTimer}" "30m"
     | If the cast was successful.
-    } else /if (${Cast.Stored.Name.Equal[${${ArrayName}[${s},${iSpellName}]}]} && ${castReturn.Equal[CAST_SUCCESS]} && !${Cast.Stored.Name.Equal[${spammableSpell}]}) {
+    } else /if (${Cast.Stored.Name.Equal[${${ArrayName}[${s},${iSpellName}]}]} && ${castReturn.Equal[CAST_SUCCESS]}) {
       /if (${Defined[${resistCount}]}) {
         /deletevar ${resistCount}
       }
@@ -727,46 +654,6 @@ SUB Event_DebuffsOn(line, ChatSender, MobID)
 /if (${Debug} || ${Debug_Assists}) /echo <== event_DebuffsOn -|
 /RETURN
 
-|---------------------------------------------------------------------------------------------|
-|- Validates targets and adds them to a list of Debuff_AllTargets. Used for Debuffs_OnAll.	 -|
-|---------------------------------------------------------------------------------------------|
-|- Use, '/Debuff' or 'Debuffs on ${Target.ID}' in /tell, /group, or /bc.					 -|
-|---------------------------------------------------------------------------------------------|
-#EVENT DebuffsAllOn "<#1#> Debuff all on #2#"
-#EVENT DebuffsAllOn "#1# tells you, 'Debuff all on #2#'"
-SUB Event_DebuffsAllOn(line, ChatSender, MobID)
-/if (${Debug} || ${Debug_Assists}) /echo |- event_DebuffsOn ==>
-  /if (!${checkEventArgs[${ChatSender},${line},UZR,${MobID}]}) /return
-    /varset MobID ${c_eventArgData}
-		/if (${Defined[All_Debuffs2D]}) {
-			| Check if the target is a corpse
-			/if (${Spawn[id ${MobID}].Type.Equal[Corpse]} || !${Select[${Spawn[id ${MobID}].Type},${AcceptableTargetTypes}]}) {
-        /docommand ${ChatToggle} Unacceptable Target ${Spawn[id ${MobID}].Type}
-			} else {
-				| Check range to the debuff target.
-				/if (${Spawn[id ${MobID}].Distance} > ${MaxAssistDistance}) {
-					/docommand ${ChatToggle} ${Spawn[${MobID}].CleanName} is too far away.
-				} else {
-					| Check if the Debuff_AllTargets array is already defined
-					/if (${Defined[Debuff_AllTargets]}) {
-						/declare i int local
-						/for i 1 to ${Debuff_AllTargets.Size}
-							/if (${Debuff_AllTargets[${i}].Arg[1,_]} == ${MobID}) {
-								/docommand ${ChatToggle} I am already debuffing ${Spawn[id ${MobID}].CleanName}.
-								/goto :Skip
-							}
-						/next i
-					}
-					/call BuildArray Debuff_AllTargets ${MobID}_${Zone.ID}
-          |/docommand ${ChatToggle} -- Debuffing ${Spawn[${MobID}].CleanName} --
-          /bc [+g+] -- Debuffing [${Spawn[${MobID}].CleanName}] --
-				}
-			}
-		}
-	:Skip
-/if (${Debug} || ${Debug_Assists}) /echo <== event_DebuffsOn -|
-/RETURN
-
 |------------------------------------------------|
 |- Cancels debuffs on command on all targets. 	-|
 |------------------------------------------------|
@@ -816,33 +703,6 @@ SUB Debuffs_OnCommand
 /if (${Debug} || ${Debug_Assists}) /echo <== Debuffs_OnCommand -|
 /RETURN
 
-|--------------------------------------------------------------------|
-|- Casts All_Debuffs on targets listed in Debuff_AllTargets array.	-|
-|--------------------------------------------------------------------|
-SUB Debuffs_OnAll
-/if (${Debug} || ${Debug_Assists}) /echo |- Debuffs_OnAll ==>
-	/declare targetID int local
-	/declare targetZone int local
-	/declare i int local
-	/if (${Defined[Debuff_AllTargets]}) {
-    /for i 1 to ${Debuff_AllTargets.Size}
-      /varset targetID ${Debuff_AllTargets[${i}].Arg[1,_]}
-      /varset targetZone ${Debuff_AllTargets[${i}].Arg[2,_]}
-      | Check Mob Zone
-      /if (${Zone.ID} != ${targetZone}) {
-        /call RemoveArrayElement Debuff_AllTargets ${Debuff_AllTargets[${i}]}
-      } else {
-        | If the Debuff_Target has died, remove them from the array.
-        /if (!${Bool[${Spawn[id ${targetID}].Type.NotEqual[Corpse]}]}) {
-          /call RemoveArrayElement Debuff_AllTargets ${Debuff_AllTargets[${i}]}
-        } else {
-          /call cast_longTermSpells "${targetID}" "All_Debuffs2D"
-        }
-      }
-      /if (!${ActionTaken} && ${Defined[Debuff_AllTargets]}) /next i
-  }
-/if (${Debug} || ${Debug_Assists}) /echo <== Debuffs_OnAll -|
-/RETURN
 
 |---------------------------------------------------------------------------------------------|
 |- Validates targets and adds them to a list of Debuff_Targets. Used for Debuffs_OnCommand.	 -|
@@ -854,17 +714,13 @@ SUB Debuffs_OnAll
 SUB Event_DoTsOn(line, ChatSender, MobID)
 /if (${Debug} || ${Debug_Assists}) /echo |- event_DoTsOn ==>
   /if (${Defined[Command_DoTs2D]}) {
-    /if (!${checkEventArgs[${ChatSender},${line},UZR,${MobID}]}) {
-		/echo event args failed
-		/return
-	}
+    /if (!${checkEventArgs[${ChatSender},${line},UZR,${MobID}]}) /return
       /varset MobID ${c_eventArgData}
       /if (${Spawn[id ${MobID}].Type.Equal[Corpse]} || !${Select[${Spawn[id ${MobID}].Type},${AcceptableTargetTypes}]}) {
         /echo Unacceptable Target ${Spawn[id ${MobID}].Type}
       } else {
         | Check range to the DoTs target.
         /if (${Spawn[id ${MobID}].Distance} > ${MaxAssistDistance}) {
-			/echo ${Spawn[${MobID}].CleanName} is too far away
           /docommand ${ChatToggle} ${Spawn[${MobID}].CleanName} is too far away.
         } else {
           | Check if the DoT_Targets array is already defined
@@ -958,7 +814,6 @@ SUB Event_AEs(line, ChatSender, aeType, aeToggle)
     }
     /if (${aeType.Equal[Target]} || ${aeType.Equal[All]}) {
       /varset use_TargetAE TRUE
-	  /if (${Debug} || ${Debug_Assists}) /echo use_TargetAE = TRUE
       /varset aeTarget ${Spawn[=${ChatSender}].ID}
       /if (${Me.Class.ShortName.Equal[RNG]}) {
         /if (${swapTgtAeRanged}) /call swapToRangedSet TRUE
@@ -1014,7 +869,6 @@ SUB check_AE
   /if (${use_TargetAE} && ${Defined[TargetAE_Spells2D]}) {
     |if i have an assist target, use that as ae target, else use aeTarget
     /declare useBestTarget int local
-	/if (${Debug} || ${Debug_Assists}) /echo AssistTarget set = ${Bool[${AssistTarget}]}
     /if (${Bool[${AssistTarget}]}) {
       /varset useBestTarget ${AssistTarget}
     } else {
@@ -1024,8 +878,6 @@ SUB check_AE
       /call check_Ready "TargetAE_Spells2D" ${s}
       /if (${c_Ready} && ${TargetAE_Spells2D[${s},${iIfs}]}) {
         /if (${check_Mana["TargetAE_Spells2D",${s}]}) {
-		  /if (${Debug} || ${Debug_Assists}) /echo Distance Check = ${check_Distance[${useBestTarget},${TargetAE_Spells2D[${s},${iMyRange}]}]}
-		  /if (${Debug} || ${Debug_Assists}) /echo Range = ${TargetAE_Spells2D[${s},${iMyRange}]}
           /if (${check_Distance[${useBestTarget},${TargetAE_Spells2D[${s},${iMyRange}]}]}) {
             /squelch /face fast id ${useBestTarget}
             /call e3_Cast ${useBestTarget} "TargetAE_Spells2D" "${s}"
@@ -1074,9 +926,7 @@ SUB event_SwarmPets(line, ChatSender, int swarmTarget)
         /call check_Ready "swarmPets2D" ${i}
         /if (${c_Ready} && ${swarmPets2D[${i},${iIfs}]}) {
           /if (${check_Distance[${swarmTarget},${swarmPets2D[1,${iMyRange}]}]}) {
-            /g SWARM-${swarmPets2D[${i},${iSpellName}]}
 				    /call e3_Cast ${swarmTarget} "swarmPets2D" "${i}"
-					  /delay 2s
           }
         }
 			/next i
@@ -1405,28 +1255,28 @@ Sub assist_Setup
 
   | Epic Definitions for EpicBurn -exclude defensive or buffs
   /declare EpicName string outer
-  /if (${FindItemCount[=Prismatic Dragon Blade]})                /varset EpicName Prismatic Dragon Blade
-  /if (${FindItemCount[=Blade of Vesagran]})                     /varset EpicName Blade of Vesagran
-  /if (${FindItemCount[=Raging Taelosian Alloy Axe]})            /varset EpicName Raging Taelosian Alloy Axe
-  /if (${FindItemCount[=Vengeful Taelosian Blood Axe]})          /varset EpicName Vengeful Taelosian Blood Axe
-  /if (${FindItemCount[=Staff of Living Brambles]})              /varset EpicName Staff of Living Brambles
-  /if (${FindItemCount[=Staff of Everliving Brambles]})          /varset EpicName Staff of Everliving Brambles
-  /if (${FindItemCount[=Fistwraps of Celestial Discipline]})     /varset EpicName Fistwraps of Celestial Discipline
-  /if (${FindItemCount[=Transcended Fistwraps of Immortality]})  /varset EpicName Transcended Fistwraps of Immortality
-  /if (${FindItemCount[=Redemption]})                            /varset EpicName Redemption
-  /if (${FindItemCount[=Nightbane, Sword of the Valiant]})       /varset EpicName Nightbane, Sword of the Valiant
-  /if (${FindItemCount[=Heartwood Blade]})                       /varset EpicName Heartwood Blade
-  /if (${FindItemCount[=Aurora, the Heartwood Blade]})           /varset EpicName Aurora, the Heartwood Blade
-  /if (${FindItemCount[=Fatestealer]})                           /varset EpicName Fatestealer
-  /if (${FindItemCount[=Nightshade, Blade of Entropy]})          /varset EpicName Nightshade, Blade of Entropy
-  /if (${FindItemCount[=Innoruuk's Voice]})                      /varset EpicName Innoruuk's Voice
-  /if (${FindItemCount[=Innoruuk's Dark Blessing]})              /varset EpicName Innoruuk's Dark Blessing
-  /if (${FindItemCount[=Crafted Talisman of Fates]})             /varset EpicName Crafted Talisman of Fates
-  /if (${FindItemCount[=Blessed Spiritstaff of the Heyokah]})    /varset EpicName Blessed Spiritstaff of the Heyokah
-  /if (${FindItemCount[=Staff of Prismatic Power]})              /varset EpicName Staff of Prismatic Power
-  /if (${FindItemCount[=Staff of Phenomenal Power]})             /varset EpicName Staff of Phenomenal Power
-  /if (${FindItemCount[=Soulwhisper]})                           /varset EpicName Soulwhisper
-  /if (${FindItemCount[=Deathwhisper]})                          /varset EpicName Deathwhisper
+  /if (${FindItemCount[Prismatic Dragon Blade]})                /varset EpicName Prismatic Dragon Blade
+  /if (${FindItemCount[Blade of Vesagran]})                     /varset EpicName Blade of Vesagran
+  /if (${FindItemCount[Raging Taelosian Alloy Axe]})            /varset EpicName Raging Taelosian Alloy Axe
+  /if (${FindItemCount[Vengeful Taelosian Blood Axe]})          /varset EpicName Vengeful Taelosian Blood Axe
+  /if (${FindItemCount[Staff of Living Brambles]})              /varset EpicName Staff of Living Brambles
+  /if (${FindItemCount[Staff of Everliving Brambles]})          /varset EpicName Staff of Everliving Brambles
+  /if (${FindItemCount[Fistwraps of Celestial Discipline]})     /varset EpicName Fistwraps of Celestial Discipline
+  /if (${FindItemCount[Transcended Fistwraps of Immortality]})  /varset EpicName Transcended Fistwraps of Immortality
+  /if (${FindItemCount[Redemption]})                            /varset EpicName Redemption
+  /if (${FindItemCount[Nightbane, Sword of the Valiant]})       /varset EpicName Nightbane, Sword of the Valiant
+  /if (${FindItemCount[=Heartwood Blade]})                      /varset EpicName Heartwood Blade
+  /if (${FindItemCount[Aurora, the Heartwood Blade]})           /varset EpicName Aurora, the Heartwood Blade
+  /if (${FindItemCount[Fatestealer]})                           /varset EpicName Fatestealer
+  /if (${FindItemCount[Nightshade, Blade of Entropy]})          /varset EpicName Nightshade, Blade of Entropy
+  /if (${FindItemCount[Innoruuk's Voice]})                      /varset EpicName Innoruuk's Voice
+  /if (${FindItemCount[Innoruuk's Dark Blessing]})              /varset EpicName Innoruuk's Dark Blessing
+  /if (${FindItemCount[Crafted Talisman of Fates]})             /varset EpicName Crafted Talisman of Fates
+  /if (${FindItemCount[Blessed Spiritstaff of the Heyokah]})    /varset EpicName Blessed Spiritstaff of the Heyokah
+  /if (${FindItemCount[Staff of Prismatic Power]})              /varset EpicName Staff of Prismatic Power
+  /if (${FindItemCount[Staff of Phenomenal Power]})             /varset EpicName Staff of Phenomenal Power
+  /if (${FindItemCount[=Soulwhisper]})                          /varset EpicName Soulwhisper
+  /if (${FindItemCount[=Deathwhisper]})                         /varset EpicName Deathwhisper
   /if (${EpicName.Length})     /call BuildArray EPICBurns "${EpicName}"
 
   /declare AnguishChest string outer
@@ -1441,14 +1291,6 @@ Sub assist_Setup
   |/echo ---------Assist calling spellarrays ----------
   /call assist_SpellArrays
 
-  | Setup a spammable spell for spell procs such as deep sleep and languid bite
-  /if (!${Defined[spammableSpell]}) {
-    /call iniToVarV "${Character_Ini},Misc,Spammable Spell" spammableSpell string outer
-    /if (${Bool[${spammableSpell}]}) {
-      /echo I can now spam ${spammableSpell}, please use a /CheckFor to stop once the proc spell is on
-    }
-  }
-
   /if (${Debug} || ${Debug_Assists}) /echo <== assist_Setup -|
 /return
 
@@ -1461,50 +1303,33 @@ SUB assist_SpellArrays
   /call IniToArrayV "${Character_Ini},DoTs on Command,${spellsToUse}#"  Command_DoTs
   /call IniToArrayV "${Character_Ini},Debuffs,Debuff on Assist#"        Assist_Debuffs
   /call IniToArrayV "${Character_Ini},Debuffs,Debuff on Command#"       Command_Debuffs
-  /call IniToArrayV "${Character_Ini},Debuffs,Debuff on All#"           All_Debuffs
   /call IniToArrayV "${Character_Ini},TargetAE,TargetAE#"               TargetAE_Spells
   /call IniToArrayV "${Character_Ini},PBAE,PBAE#"                       PBAE_Spells
   /call IniToArrayV "${Character_Ini},Burn,Quick Burn#"                 QUICKBurns
   /call IniToArrayV "${Character_Ini},Burn,Long Burn#"                  LONGBurns
   /call IniToArrayV "${Character_Ini},Burn,Full Burn#"                  FULLBurns
-  /call IniToArrayV "${Character_Ini},Off Assist Spells,${spellsToUse}#"            OffAssistSpells
 
   /if (${Me.Class.ShortName.Equal[MAG]}) {
-	/if (!${Defined[summonMoltenOrb]}) /declare summonMoltenOrb bool outer FALSE
+    /declare summonMoltenOrb bool outer FALSE
     /if (${Bool[${Me.AltAbility[Servant of Ro]}]})        /call BuildArray "swarmPets" "Servant of Ro"
     /if (${Bool[${Me.AltAbility[Host of the Elements]}]}) /call BuildArray "swarmPets" "Host of the Elements"
     /if (${Defined[MyNukes]}) {
       /declare i int local
       /for i 1 to ${MyNukes.Size}
-        /if (${MyNukes[${i}].Find[Lava Orb]}) /varset summonMoltenOrb TRUE
+        /if (${MyNukes[${i}].Find[Molten Orb]}) /varset summonMoltenOrb TRUE
       /next i
     }
   } else /if (${Me.Class.ShortName.Equal[NEC]}) {
     /if (${Bool[${Me.AltAbility[Swarm of Decay]}]}) /call BuildArray "swarmPets" "Swarm of Decay"
     /if (${Bool[${Me.AltAbility[Wake the Dead]}]})  /call BuildArray "swarmPets" "Wake the Dead"
-	/if (${Bool[${Me.AltAbility[Wake the Dead]}]})  /call BuildArray "swarmPets" "Rise of Bones"
   } else /if (${Me.Class.ShortName.Equal[SHM]}) {
     /if (${Bool[${Me.AltAbility[Spirit Call]}]})    /call BuildArray "swarmPets" "Spirit Call"
-    /if (${Bool[${FindItem[Shattered Gnoll Slayer]}]})    /call BuildArray "swarmPets" "Shattered Gnoll Slayer"
   } else /if (${Me.Class.ShortName.Equal[WIZ]}) {
     /if (${Bool[${Me.AltAbility[Call of Xuzl]}]})   /call BuildArray "swarmPets" "Call of Xuzl"
   } else /if (${Me.Class.ShortName.Equal[BRD]}) {
     /if (${Bool[${Me.AltAbility[Song of Stone]}]})   /call BuildArray "swarmPets" "Song of Stone"
   } else /if (${Me.Class.ShortName.Equal[CLR]}) {
     /if (${Bool[${Me.AltAbility[Celestial Hammer]}]}) /call BuildArray "swarmPets" "Celestial Hammer"
-  } else /if (${Me.Class.ShortName.Equal[ENC]}) {
-    /if (${Bool[${Me.AltAbility[Doppelganger]}]}) {
-      |/call BuildArray "swarmPets" "Doppelganger"
-    }
-    /if (${Bool[${Me.AltAbility[Phantasmal Opponent]}]}) {
-      /call BuildArray "swarmPets" "Phantasmal Opponent"
-    }
-  } else /if (${Me.Class.ShortName.Equal[PAL]}) {
-    |/if (${Bool[${Me.AltAbility[Projection of Piety]}]}) /call BuildArray "swarmPets" "Projection of Piety"
-  } else /if (${Me.Class.ShortName.Equal[DRU]}) {
-    /if (${Bool[${Me.AltAbility[Spirits of Nature]}]}) /call BuildArray "swarmPets" "Spirits of Nature"
-    /if (${Bool[${Me.AltAbility[Nature's Guardian]}]}) /call BuildArray "swarmPets" "Nature's Guardian"
-    /if (${Bool[${FindItem[Shattered Gnoll Slayer]}]}) /call BuildArray "swarmPets" "Shattered Gnoll Slayer"
   }
 
   /if (${Defined[MyAbilities]})		    /call BuildSpellArray "MyAbilities"	      "Abilities2D"
@@ -1513,7 +1338,6 @@ SUB assist_SpellArrays
   /if (${Defined[TargetAE_Spells]})		/call BuildSpellArray "TargetAE_Spells" 	"TargetAE_Spells2D"
   /if (${Defined[Assist_Debuffs]})		/call BuildSpellArray "Assist_Debuffs" 		"Assist_Debuffs2D"
   /if (${Defined[Command_Debuffs]})		/call BuildSpellArray "Command_Debuffs" 	"Command_Debuffs2D"
-  /if (${Defined[All_Debuffs]})		    /call BuildSpellArray "All_Debuffs" 	    "All_Debuffs2D"
   /if (${Defined[Assist_DoTs]})	      /call BuildSpellArray "Assist_DoTs" 	    "Assist_DoTs2D"
   /if (${Defined[Command_DoTs]})	    /call BuildSpellArray "Command_DoTs" 	    "Command_DoTs2D"
   /if (${Defined[EPICBurns]})         /call BuildSpellArray "EPICBurns" 	      "EPICBurns2D"
@@ -1521,7 +1345,7 @@ SUB assist_SpellArrays
   /if (${Defined[LONGBurns]})	        /call BuildSpellArray "LONGBurns" 	      "LONGBurns2D"
   /if (${Defined[FULLBurns]})	        /call BuildSpellArray "FULLBurns" 	      "FULLBurns2D"
   /if (${Defined[swarmPets]})	        /call BuildSpellArray "swarmPets" 	      "swarmPets2D"
-  /if (${Defined[OffAssistSpells]})	  /call BuildSpellArray "OffAssistSpells"   "OffAssist_Spells2D"
+
 /RETURN
 
 |--------------------------------------------------------------------------------|
@@ -1553,7 +1377,7 @@ SUB assist_CharacterSettings
 	/call WriteToIni "${Character_Ini},Assist Settings,Ranged Distance" 100
   /call WriteToIni "${Character_Ini},Assist Settings,Auto-Assist Engage Percent" 98
 	| If I'm a melee class, add Melee Abilities entries.
-	/if (${Select[${Me.Class.ShortName},BRD,BER,BST,MNK,PAL,RNG,ROG,SHD,WAR,CLR]}) {
+	/if (${Select[${Me.Class.ShortName},BRD,BER,BST,MNK,PAL,RNG,ROG,SHD,WAR]}) {
 		/if (!${Ini[${Character_Ini},Melee Abilities].Length}) /call WriteToIni "${Character_Ini},Melee Abilities,Ability"
 	}
 	| If I'm a casting class, add Nuke entries.
@@ -1661,7 +1485,7 @@ Sub assist_Aliases
   /squelch /alias /Intensity /bc VetAA Intensity of the Resolute
   /squelch /alias /Armor /bc VetAA Armor of Experience
   /squelch /alias /Expedient /bc VetAA Expedient Recovery
-  |/squelch /alias /Throne /bc VetAA Throne of Heroes
+  /squelch /alias /Throne /bc VetAA Throne of Heroes
   /squelch /alias /Jester /bc VetAA Chaotic Jester
 
 /if (${Debug}) /echo <== assist_Aliases -|
@@ -1684,7 +1508,6 @@ Sub assist_Background_Events
   /doevents EnrageOn
   /doevents EnrageOff
   /doevents DebuffsOn
-  /doevents DebuffsAllOn
   /doevents DebuffsOff
   /doevents DoTsOn
   /doevents DoTsOff
@@ -1692,15 +1515,4 @@ Sub assist_Background_Events
   /doevents SpellSet
   /doevents SetTank
   /doevents CombatMode
-  /doevents debuffsOnAll
 /return
-
-#EVENT debuffsOnAll "<|${Me.Name}|> Debuff On All"
-SUB event_debuffsOnAll(line)
-  /declare i int local
-  /for i 1 to 13
-    /if (${Me.XTarget[${i}].TargetType.Equal[Auto Hater]} && ${Me.XTarget[${i}].LineOfSight} && ${Me.XTarget[${i}].Aggressive} && ${Me.XTarget[${i}].ID}) {
-      /bc Debuff all on ${Me.XTarget[${i}].ID}
-    }
-  /next i
-/RETURN

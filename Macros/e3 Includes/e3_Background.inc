@@ -176,9 +176,10 @@ SUB check_Active
 
 |------------------------------------------------------------|
 |- loot, check exp allocation, announce exp	-|
-#event YourKill "You have gained #*#"
-#event YourKill "#*# party experience!"
+#event YourKill "You gain experience!!"
+#event YourKill "You gain party experience!!"
 #event YourKill "You gained raid experience!"
+#event YourKill "You have gained #*#"
 SUB Event_YourKill(line)
   /if (!${line.Find[raid]}) {
     /if (${Group}>1 && ${Me.Name.Equal[${Group.Leader}]}) {

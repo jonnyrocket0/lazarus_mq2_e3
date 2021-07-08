@@ -4,22 +4,21 @@
 SUB check_Buffs
 	/if (${Debug} || ${Debug_BuffCheck}) /echo |- buffCheck ==>
 	/if (${BuffCheck} && !${ActionTaken} && !${activeTimer} && !${rebuffTimer}) {
-		/if (!${idle} && ${BuffCombatCheck} && !${Me.Moving})	/call buffBots "CombatBuffs2D"
-		/if (${procBuff} && !${idle} && !${Me.Moving}) /call buffProcs
-		/if (${Defined[auraSpells2D]} && (${auraCombat} || ${Me.CombatState.NotEqual[COMBAT]}) && !${Me.Moving}) /call checkAuras
+		/if (!${medBreak} && !${idle} && ${BuffCombatCheck} && !${Me.Moving})	/call buffBots "CombatBuffs2D"
+    /if (!${medBreak} && ${procBuff} && !${idle} && ${BuffCombatCheck} && !${Me.Moving}) /call buffProcs
+    /if (${Defined[auraSpells2D]} && (${auraCombat} || ${Me.CombatState.NotEqual[COMBAT]}) && !${Me.Moving}) /call checkAuras
 		/if (${Defined[InstantBuffs2D]})		/call buffBots "InstantBuffs2D"
 		/if (!${combatTimer} && ${Me.CombatState.NotEqual[COMBAT]} && !${Assisting} && !${Me.Moving} && ${BuffCheck}) {
 			/if (${Defined[SelfBuffs2D]}) /call buffBots "SelfBuffs2D"
 			/if (${Defined[BotBuffs2D]})	/call buffBots "BotBuffs2D"
-			/if (${Defined[auraSpells2D]}) /call checkAuras
-			/if (${Defined[PetBuffs2D]})	/call buffBots "PetBuffs2D"
+      /if (${Defined[auraSpells2D]}) /call checkAuras
 		}
 	}
 	/if (${Debug} || ${Debug_BuffCheck}) /echo <== buffCheck -|
 /RETURN
 
 |----------------------------------------|
-|- Cast and maintain buffs on a NetBot or NetBot's Pet.	-|
+|- Cast and maintain buffs on a NetBot.	-|
 |- the space after ${buffSpellID} is important "Find[${buffSpellID} ]"
 |----------------------------------------|
 SUB buffBots(ArrayName)
@@ -43,23 +42,19 @@ SUB buffBots(ArrayName)
 	} else /if (${Select[${ArrayName},CombatBuffs2D,BotBuffs2D]}) {
 		/varset buffTargetID ${Spawn[=${${ArrayName}[${s},${iCastTarget}]}].ID}
 		/varset buffTarget ${${ArrayName}[${s},${iCastTarget}]}
-	} else /if (${Select[${ArrayName},PetBuffs2D]}) {
-		/varset buffTargetID ${Spawn[=${${ArrayName}[${s},${iCastTarget}]}].Pet.ID}
-		/varset buffTarget ${${ArrayName}[${s},${iCastTarget}]}
 	}
-		
 	/varset buffSpellName		${${ArrayName}[${s},${iSpellName}]}
 	/varset buffSpellID			${${ArrayName}[${s},${iSpellID}]}]
 	/varset buffCheckForName	${${ArrayName}[${s},${iCheckFor}]}
 	/varset buffCheckForID		${${ArrayName}[${s},${iCheckForID}]}
-		
-  /if (!${Bool[${NetBots[${buffTarget}].ID}]}) /goto :skipBuff
 
+  /if (!${Bool[${NetBots[${buffTarget}].ID}]}) /goto :skipBuff
+	|/echo ${buffSpellName} ${buffSpellID} ${buffCheckForName} ${buffCheckForID} ${Bool[${NetBots[${buffTarget}].Buff.Find[${buffSpellID} ]}]}
+  |/echo ${buffSpellName} ${Select["${buffSpellName}","Thief's Eyes", "Fists of Wu", "Commanding Voice","Cry Havoc"]}
   /if (${Select[${buffSpellID},8001,8002,8000,8003]}) {
     /call meleeCombatBuffs "${ArrayName}" ${s}
     /goto :skipBuff
   }
-
   |------- Self ------|
   /if (${Select[${ArrayName},SelfBuffs2D,InstantBuffs2D]}) {
     /if (!${Bool[${Me.Buff[${buffSpellName}]}]} || (${Bool[${Me.Buff[${buffSpellName}]}]} && ${Me.Buff[${buffSpellName}].Duration.TotalSeconds} <= ${buffRecastTime})) {
@@ -74,29 +69,9 @@ SUB buffBots(ArrayName)
         } else /if (${Debug} || ${Debug_BuffCheck}) /echo buff does not stack, or checkfor buff exists
       } else /if (${Debug} || ${Debug_BuffCheck}) /echo buff or checkfor buff exists in songs
     } else /if (${Debug} || ${Debug_BuffCheck}) /echo buff exists with duration > 30 seconds
-
-  |------- Netbot Pets ------|
-  } else /if (${Select[${ArrayName},PetBuffs2D]} && !${Bool[${NetBots[${buffTarget}].PetBuff.Find[${buffSpellID} ]}]} && ${Bool[${NetBots[${buffTarget}].InZone}]} && ${Spawn[${buffTarget}].LineOfSight}) {
-	|/echo Pets: ${buffTarget} ${buffSpellName} ${NetBots[${buffTarget}].PetBuff.Find[${buffSpellID} ]}
-    /if (!${Bool[${NetBots[${buffTarget}].PetBuff.Find[${buffCheckForID} ]}]}) {
-        /if (!${${ArrayName}[${s},${iTargetType}].Equal[Single in Group]} || ${Bool[${Group.Member[${buffTarget}]}]}) {
-			/call check_Ready "${ArrayName}" ${s}
-			/if (${c_Ready} && ${${ArrayName}[${s},${iIfs}]}) {
-				/if (${check_Distance[${buffTargetID},${${ArrayName}[${s},${iMyRange}]}]}) {
-					/if (${check_Mana["${ArrayName}",${s}]}) {
-						/call e3_Cast ${buffTargetID} "${ArrayName}" ${s}
-						/delay 3 ${Target.BuffsPopulated}
-						/if (${castReturn.Equal[CAST_SUCCESS]} && !${Bool[${NetBots[${buffTarget}].Buff.Find[${buffSpellID} ]}]} && !${Bool[${NetBots[${buffTarget}].ShortBuff.Find[${buffSpellID} ]}]}) {
-						  /call CreateTimer "nht${Target.ID}-${buffSpellID}" "${noHoldDelay}"
-						}
-					}
-				}
-			}
-		}
-	}
   } else {
   |------- Netbots ------|
-    /if (!${Select[${ArrayName},PetBuffs2D]} && !${Bool[${NetBots[${buffTarget}].Buff.Find[${buffSpellID} ]}]}	&& !${Bool[${NetBots[${buffTarget}].ShortBuff.Find[${buffSpellID} ]}]} && ${NetBots[${buffTarget}].FreeBuffSlots}>0 && ${Bool[${NetBots[${buffTarget}].InZone}]}) {
+    /if (!${Bool[${NetBots[${buffTarget}].Buff.Find[${buffSpellID} ]}]}	&& !${Bool[${NetBots[${buffTarget}].ShortBuff.Find[${buffSpellID} ]}]} && ${NetBots[${buffTarget}].FreeBuffSlots}>0 && ${Bool[${NetBots[${buffTarget}].InZone}]}) {
       /if (!${Bool[${NetBots[${buffTarget}].Buff.Find[${buffCheckForID} ]}]}	&& !${Bool[${NetBots[${buffTarget}].ShortBuff.Find[${buffCheckForID} ]}]}) {
         /if (!${${ArrayName}[${s},${iTargetType}].Equal[Single in Group]} || ${Bool[${Group.Member[${buffTarget}]}]}) {
           /call check_Ready "${ArrayName}" ${s}
@@ -114,8 +89,7 @@ SUB buffBots(ArrayName)
         } else /if (${Debug} || ${Debug_BuffCheck}) /echo ~Bot is not in group for groupbuff~
       } else /if (${Debug} || ${Debug_BuffCheck}) /echo ~Bot has checkFoR buff~
     } else /if (${Debug} || ${Debug_BuffCheck}) /echo ~Bot has buff or short buff~
-  } 
-    
+  }
   :skipBuff
   /doevents Follow
   /doevents Stop
@@ -167,7 +141,7 @@ SUB buffProcs
       /for g 1 to ${Math.Calc[${Group.GroupSize}-1]}
         /if (${Group.Member[${g}].ID}) {
           /if (${procBuffClass.Find[${Group.Member[${g}].Class.ShortName}]}) {
-            /if (!${NetBots[${Group.Member[${g}]}].Buff.Find[${ProcBuffs2D[${s},${iSpellID}]}]} && !${NetBots[${Group.Member[${g}]}].Buff.Find[${ProcBuffs2D[${s},${iCheckFor}]} ]}) {
+            /if (!${NetBots[${Group.Member[${g}]}].Buff.Find[${ProcBuffs2D[${s},${iSpellID}]} ]} && !${NetBots[${Group.Member[${g}]}].Buff.Find[${ProcBuffs2D[${s},${iCheckFor}]} ]}) {
               /call check_Ready "ProcBuffs2D" ${s}
               /if (${c_Ready}) {
                 /call check_Distance
@@ -178,9 +152,7 @@ SUB buffProcs
                 } else /if (${Debug} || ${Debug_BuffCheck}) /echo ${ProcBuffs2D[${s},${iCastName}]} is too far away
               } else /if (${Debug} || ${Debug_BuffCheck}) /echo ${ProcBuffs2D[${s},${iCastName}]} is not ready for ${Group.Member[${g}]}
             }
-          } else /if (${procBuffClass.Find[PET]} && ${Bool[${NetBots[${Group.Member[${g}]}].PetID}]} && !${NetBots[${Group.Member[${g}]}].PetBuff.Find[${Spell[${ProcBuffs2D[${s},${iCastName}]}].ID}]} && ${Spawn[id ${NetBots[${Group.Member[${g}]}].PetID}].LineOfSight}) {
-			/call e3_Cast ${NetBots[${Group.Member[${g}]}].PetID} "ProcBuffs2D" ${s}
-		  }
+          }
         }
       /doevents Follow
       /doevents Stop
@@ -195,7 +167,7 @@ SUB buffProcs
 /if (${Debug} || ${Debug_BuffCheck}) /echo <==  buffProcs -|
 /return
 |--------------------------------------------------------|
-|- Casts Aura Buffs                                     -|
+|- Casts Proc Buffs (e.x: Panther, Mana Flare           -|
 |--------------------------------------------------------|
 SUB checkAuras
   /if (${Debug} || ${Debug_BuffCheck}) /echo sub checkAuras ==>
@@ -203,15 +175,10 @@ SUB checkAuras
     /declare s int local
     /for s 1 to ${auraSpells2D.Size[1]}
       /if (!${Bool[${Me.Aura[${auraSpells2D[${s},${iSpellName}]}]}]}) {
-        /declare previousSpell string local ${Me.Gem[${DefaultGem}]}
         /call check_Ready "auraSpells2D" ${s}
         /if (${c_Ready}) {
           /if (${check_Mana["auraSpells2D",${s}]}) {
             /call e3_Cast ${Me.ID} "auraSpells2D" "${s}"
-            /if (${Bool[${previousSpell}]}) {
-              /echo Re-memorizing ${previousSpell} after aura cast
-              /memorize "${previousSpell}" "${DefaultGem}"
-            }
           }
         }
       }
@@ -220,29 +187,18 @@ SUB checkAuras
     /if (${Me.Class.ShortName.Equal[BRD]}) {
       /if (${Twist.Twisting}) /call pauseTwist
       /if (${Me.Casting.ID}) /call interrupt
-      /declare previousSpell string local ${Me.Gem[${DefaultGem}]}
       /call check_Ready "auraSpells2D" 1
       /if (${c_Ready}) {
         /cast ${Me.Gem[${auraSpells2D[1,${iCastName}]}]}
         /delay 7s !${Me.Casting.ID}
-        /if (${Bool[${previousSpell}]}) {
-          /echo Re-memorizing ${previousSpell} after aura cast
-          /memorize "${previousSpell}" "${DefaultGem}"
-        }
       }
       /call unpauseTwist
     } else {
-      /declare previousSpell string local ${Me.Gem[${DefaultGem}]}
       /call check_Ready "auraSpells2D" 1
       /if (${c_Ready}) {
         /if (${check_Mana["auraSpells2D",1]}) {
           /call e3_Cast ${Me.ID} "auraSpells2D" "1"
-          /delay 7s !${Me.Casting.ID}
         }
-      }
-      /if (${Bool[${previousSpell}]}) {
-        /echo Re-memorizing ${previousSpell} after aura cast
-        /memorize "${previousSpell}" "${DefaultGem}"
       }
     }
   }
@@ -273,7 +229,7 @@ SUB event_castGroupBuffs(line, ChatSender)
   } else /if (${SpawnCount[=${buffTarget}]}) {
     /varset buffTarget ${Spawn[=${buffTarget}].ID}
   }
-  
+
   /declare s int local 1
   /declare buffAttempts int local 1
 
@@ -346,28 +302,28 @@ SUB EVENT_toggleCombatBuffs(line, ChatSender, buffSetting)
 /RETURN
 
 |----------------------------------------------------|
-Sub buffCheck_Setup
+ Sub buffCheck_Setup
 /call iniToVarV "${advSettings_Ini},Debug,Debug BuffCheck (On/Off)" Debug_BuffCheck bool outer
 /if (${Debug} || ${Debug_BuffCheck}) /echo |- buffCheck_Setup ==>
-	/declare BuffCheck 				    bool outer TRUE
-	/declare BuffCombatCheck		  bool outer FALSE
-	/declare min_BuffCheckHealth 	int outer 80
-	/declare buffRecastTime			  int outer 60
-	/call iniToVarV "${Character_Ini},Buffs,Proc Buff Class"  procBuffClass string outer
-	/call iniToVarV "${Character_Ini},Buffs,Proc Buff (On/Off)"	procBuff bool outer
+    /declare BuffCheck                     bool outer TRUE
+    /declare BuffCombatCheck          bool outer FALSE
+    /declare min_BuffCheckHealth     int outer 80
+    /declare buffRecastTime              int outer 60
+  /call iniToVarV "${Character_Ini},Buffs,Proc Buff Class"  procBuffClass string outer
+  /call iniToVarV "${Character_Ini},Buffs,Proc Buff (On/Off)"    procBuff bool outer
 
-	/call iniToVarV "${Character_Ini},Buffs,Cast Aura Combat (On/Off)"	auraCombat bool outer
-	/declare auraSpell string outer
-	/declare auraSpell2 string outer
+  /call iniToVarV "${Character_Ini},Buffs,Cast Aura Combat (On/Off)"    auraCombat bool outer
+    /declare auraSpell string outer
+    /declare auraSpell2 string outer
 
 |--  doability
-	/if (${Me.CombatAbility[Myrmidon's Aura]}) /varset auraSpell Myrmidon's Aura
-	/if (${Me.CombatAbility[Champion's Aura]}) /varset auraSpell Champion's Aura
-	/if (${Me.CombatAbility[Disciple's Aura]}) /varset auraSpell Disciple's Aura
-	/if (${Me.CombatAbility[Master's Aura]}) /varset auraSpell Master's Aura
-	/if (${Me.CombatAbility[Aura of Rage]}) /varset auraSpell Aura of Rage
-	/if (${Me.CombatAbility[Bloodlust Aura]}) /varset auraSpell Bloodlust Aura
-|-- casting
+    /if (${Me.CombatAbility[Myrmidon's Aura]}) /varset auraSpell Myrmidon's Aura
+    /if (${Me.CombatAbility[Champion's Aura]}) /varset auraSpell Champion's Aura
+    /if (${Me.CombatAbility[Disciple's Aura]}) /varset auraSpell Disciple's Aura
+    /if (${Me.CombatAbility[Master's Aura]}) /varset auraSpell Master's Aura
+    /if (${Me.CombatAbility[Aura of Rage]}) /varset auraSpell Aura of Rage
+    /if (${Me.CombatAbility[Bloodlust Aura]}) /varset auraSpell Bloodlust Aura
+  |-- casting
   /if (${Me.Book[Aura of Insight]}) /varset auraSpell Aura of Insight
   /if (${Me.Book[Aura of the Muse]}) /varset auraSpell Aura of the Muse
   /if (${Me.Book[Aura of the Zealot]}) /varset auraSpell Aura of the Zealot
@@ -385,15 +341,14 @@ Sub buffCheck_Setup
     /if (${Me.Book[Aura of Divinity]} && ${Me.Book[Aura of the Pious]}) /varset auraSpell2 Aura of the Pious
   }
   /if (${Bool[${Me.AltAbility[Auroria Mastery]}]}) {
-    /if (${Me.Book[Beguiler's Aura]} && ${Me.Book[Beguiler's Aura]}) /varset auraSpell2 Beguiler's Aura
+    /if (${Me.Book[Twincast Aura]} && ${Me.Book[Beguiler's Aura]}) /varset auraSpell2 Beguiler's Aura
     /if (${Me.Book[Twincast Aura]} && ${Me.Book[Illusionist's Aura]}) /varset auraSpell2 Illusionist's Aura
-  	/if (${Me.Book[Aura of Endless Glamour]} && ${Me.Book[Aura of Endless Glamour]}) /varset auraSpell2 Aura of Endless Glamour
   }
 
   /if (${auraSpell.Length}) /call BuildArray "auraSpells" "${auraSpell}"
   /if (${auraSpell2.Length}) /call BuildArray "auraSpells" "${auraSpell2}"
-	
-	/call buff_SpellArrays
+  
+  /call buff_SpellArrays
 
 /if (${Debug} || ${Debug_BuffCheck}) /echo <== buffCheck_Setup -|
 /return
@@ -405,10 +360,6 @@ SUB buff_SpellArrays
   /call IniToArrayV "${Character_Ini},Buffs,Bot Buff#"			BotBuffs
   /call IniToArrayV "${Character_Ini},Buffs,Combat Buff#"		CombatBuffs
   /call IniToArrayV "${Character_Ini},Buffs,Proc Buff#"		  ProcBuffs
-  /call IniToArrayV "${Character_Ini},Buffs,Pet Buff#"		  PetBuffs
-
-  /call IniToArrayV "${Character_Ini},Buffs,Group Buff L1#"		GroupBuffsL1
-  /call IniToArrayV "${Character_Ini},Buffs,Group Buff L47#"		GroupBuffsL47
 
   /if (${Defined[InstantBuffs]}) /call BuildSpellArray "InstantBuffs"	"InstantBuffs2D"
   /if (${Defined[SelfBuffs]})    /call BuildSpellArray "SelfBuffs"	  "SelfBuffs2D"
@@ -417,10 +368,6 @@ SUB buff_SpellArrays
   /if (${Defined[GroupBuffs]})   /call BuildSpellArray "GroupBuffs"	  "GroupBuffs2D"
   /if (${Defined[ProcBuffs]})    /call BuildSpellArray "ProcBuffs"	  "ProcBuffs2D"
   /if (${Defined[auraSpells]})   /call BuildSpellArray "auraSpells"	  "auraSpells2D"
-  /if (${Defined[PetBuffs]})   /call BuildSpellArray "PetBuffs"	  "PetBuffs2D"
-
-  /if (${Defined[GroupBuffsL1]})   /call BuildSpellArray "GroupBuffsL1"	  "GroupBuffsL12D"
-  /if (${Defined[GroupBuffsL47]})   /call BuildSpellArray "GroupBuffsL47"	  "GroupBuffsL472D"
 
   /if (${Defined[CombatBuffs2D]})	/varset BuffCombatCheck TRUE
 
@@ -429,7 +376,7 @@ SUB buff_SpellArrays
   |/if (${BotBuffs.Size})		  /call BuildSpellArray "BotBuffs"			"BotBuffs2D"
   |/if (${CombatBuffs.Size}) 	/call BuildSpellArray "CombatBuffs"		"CombatBuffs2D"
   |/if (${GroupBuffs.Size})	  /call BuildSpellArray "GroupBuffs"		"GroupBuffs2D"
-  |/if (${ProcBuffs.Size})	    /call BuildSpellArray "ProcBuffs"		  "ProcBuffs2D"
+ | /if (${ProcBuffs.Size})	    /call BuildSpellArray "ProcBuffs"		  "ProcBuffs2D"
   |/if (${auraSpells.Size})    /call BuildSpellArray "auraSpells"		"auraSpells2D"
 
   /declare s int local
@@ -460,7 +407,6 @@ SUB buffCheck_CharacterSettings
 	/call WriteToIni "${Character_Ini},Buffs,Bot Buff"
 	/call WriteToIni "${Character_Ini},Buffs,Combat Buff"
 	/call WriteToIni "${Character_Ini},Buffs,Group Buff"
-	/call WriteToIni "${Character_Ini},Buffs,Pet Buff"
   /if (${Select[${Me.Class.ShortName},WAR,CLR,PAL]}) /call WriteToIni "${Character_Ini},Buffs,Cast Aura Combat (On/Off)" Off
 	/if (${Select[${Me.Class.ShortName},DRU,MNK,BER,BRD,ENC]}) /call WriteToIni "${Character_Ini},Buffs,Cast Aura Combat (On/Off)" On
 

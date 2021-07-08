@@ -98,6 +98,7 @@ SUB EVENT_sellItems
 		/keypress CLOSE_INV_BAGS
 		
 		/echo I have finished selling.
+		/g I have finished selling.
 	}
 	
 /if (${Debug} || ${Debug_Sell}) /echo <== EVENT_sellItems -|
@@ -234,6 +235,50 @@ SUB openMerchant(int providedID)
 /RETURN
 
 
+|--------------------------------------------|
+|- Opens trade with the nearest banker.		-|
+|--------------------------------------------|
+SUB openBanker(int providedID)
+/if (${Debug} || ${Debug_Sell}) /echo |- openBanker ==>
+
+	/declare miscTimer timer local
+	/declare bankerTotal int local -1
+	/declare bankerID int local ${If[${providedID},${providedID},${Spawn[Banker].ID}]}
+
+	/if (!${Spawn[Banker].ID} || !${Spawn[Banker].LineOfSight}) {
+		/echo There are no bankers nearby!
+	} else {
+	
+		| Move to the banker.
+		/call TrueTarget ${bankerID}
+		/call MoveToLoc ${Target.Y} ${Target.X} 80 15
+	
+		| Open Banker window.
+		/if (${Target.Distance} < 20) {
+		
+			| Set timer
+			/varset miscTimer 100
+		
+			| Right click banker, and wait for window to open.
+			:openBanker
+			/if (${Debug} || ${Debug_Sell}) /echo |- openBanker -| :openBanker
+			
+			/if (!${Window[BigBankWnd].Open}) /click right target
+			/delay 5 ${Window[BigBankWnd].Open}
+			/if (!${Window[BigBankWnd].Open}) {
+				/if (${miscTimer}) {
+					/goto :openBanker
+				} else {
+					/echo Failed to open bank via [${Target.CleanName}].
+				}
+			}
+		}
+	}
+
+/if (${Debug} || ${Debug_Sell}) /echo <== openBanker -|
+/RETURN
+
+
 
 |--------------------|
 |- closeMerchant	-|
@@ -251,6 +296,25 @@ SUB closeMerchant
 	
 	
 /if (${Debug} || ${Debug_Sell}) /echo <== closeMerchant -|
+/RETURN
+
+
+
+|--------------------|
+|- closeBanker		-|
+|--------------------|
+SUB closeBanker
+/if (${Debug} || ${Debug_Sell}) /echo |- closeBanker ==>
+	/declare miscTimer timer local 50
+	
+	:closeBanker
+	/if (${Debug} || ${Debug_Sell}) /echo |- closeBanker -| :closeBanker
+	/notify BigBankWnd BIGB_DoneButton leftmouseup
+	/delay 5 ${Window[BigBankWnd].Open}
+	/if (${Window[BigBankWnd].Open} && ${miscTimer}) /goto :closeBanker
+	
+	
+/if (${Debug} || ${Debug_Sell}) /echo <== closeBanker -|
 /RETURN
 
 
@@ -526,6 +590,110 @@ SUB destroyItems
 /RETURN
 
 
+|------------------------------------------------------------------------------------------------------------------------------------|
+|- EVENT_stackItems																													-|
+|------------------------------------------------------------------------------------------------------------------------------------|
+|- Commands bots, including yourself, to open trade with the nearest banker, and stack items flagged as [/Bank] in your Loot_Ini.	-|
+|------------------------------------------------------------------------------------------------------------------------------------|
+#EVENT stackItems "[MQ2] Stack Items"
+#EVENT stackItems "<#*#> Stack Items"
+#EVENT stackItems "[MQ2] AutoStack"
+#EVENT stackItems "<#*#> AutoStack"
+#EVENT stackItems "[MQ2] Auto Stack"
+#EVENT stackItems "<#*#> Auto Stack"
+SUB EVENT_stackItems
+/if (${Debug} || ${Debug_Sell}) /echo |- EVENT_stackItems ==>
+	
+	| Record starting location.
+	/declare startingLoc string local ${Me.Loc.Replace[ ,]}
+		
+	| Open trade with the nearest merchant.
+	/call openBanker
+	
+	/if (${Window[BigBankWnd].Open}) {
+	
+		| Open bags.
+		/keypress OPEN_INV_BAGS
+		/keypress CMD_TOGGLE_BANK_BAGS
+							
+		/delay 5
+		
+		/call stackItems
+		
+		| Close banker.
+		/if (${Window[BigBankWnd].Open}) /call closeBanker
+	
+		| Close bags.
+		/keypress CLOSE_INV_BAGS
+		
+		/echo I have finished banking.
+	}
+
+/if (${Debug} || ${Debug_Sell}) /echo <== EVENT_stackItems -|
+/RETURN
+
+
+|--------------------------------------------------------------------------------------------------------|
+|- Stacks items in your inventory that already have stacks in your bank until the bank stack is full.	-|
+|--------------------------------------------------------------------------------------------------------|
+SUB stackItems
+/if (${Debug} || ${Debug_Sell}) /echo |- stackItems ==>
+
+	/declare retryTimer timer local
+	/declare i int local
+	/declare e int local
+	/declare curItem string local
+	
+	| Scan inventory for items to sell
+	/for i 1 to ${numInventorySlots}
+	
+		/if (${Bool[${Me.Inventory[pack${i}]}]}) {
+		
+			| If the item in pack slot 'i' IS a container
+			/if (${Me.Inventory[pack${i}].Container}) {
+			
+				| Look at each bag slot for items to sell
+				/for e 1 to ${Me.Inventory[pack${i}].Container}
+				
+					/if (${Bool[${Me.Inventory[pack${i}].Item[${e}]}]}) {
+						
+						/varset curItem ${Me.Inventory[pack${i}].Item[${e}]}
+						
+						| If the item in inventory contains a stack in the bank, stack it.
+						/if (${Bool[${FindItemBank[${Me.Inventory[pack${i}].Item[${e}]}]}]}) {
+							
+							:pickupItemLoop
+							/if (!${Bool[${Cursor}]} && !${Window[QuantityWnd].Open}) {
+								/itemnotify ${FindItem[${curItem}].InvSlot} leftmouseup
+								/goto :pickupItemLoop
+							}
+							
+							| Close the quantity window
+							:closeWtyWndLoop
+							/if (${Window[QuantityWnd].Open}) {
+								/notify QuantityWnd QTYW_Accept_Button leftmouseup
+								/goto :closeWtyWndLoop
+							}
+							
+							:placeItemLoop
+							/if (${Bool[${Cursor}]}) {
+								/itemnotify ${FindItemBank[${curItem}].InvSlot} leftmouseup
+								/goto :placeItemLoop
+							}
+						}
+					}
+				
+				/next e
+			
+			}
+		}
+	
+	/next i
+
+/if (${Debug} || ${Debug_Sell}) /echo <== stackItems -|
+/RETURN
+
+
 
 SUB sell_Setup
 /call iniToVarV "${advSettings_Ini},Debug,Debug Sell (On/Off)" Debug_Sell bool outer
@@ -541,6 +709,7 @@ SUB sell_Setup
 Sub sell_Background_Events
 	/doevents syncInventory
 	/doevents sellItems
+	/doevents stackItems
   /doevents Combine
 /return
 
@@ -564,5 +733,7 @@ Sub sell_Aliases
 /if (${Debug}) /echo |- _Aliases ==>
 	/squelch /alias /syncInventory /bc Sync Inventory
 	/squelch /alias /autosell /echo Auto Sell
+	/squelch /alias /autobank /echo Auto Stack
+	/squelch /alias /autostack /echo Auto Stack
 /if (${Debug}) /echo <== _Aliases -|
 /return

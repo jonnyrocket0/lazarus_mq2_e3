@@ -98,7 +98,7 @@ SUB loot_Area
   /if (${Auto_Loot}) /next i
   |if all corpses in radius cant be looted, dont try again until a new kill occurs
   /if (${cantLootCorpseCount}>=${SpawnCount[npc corpse zradius 50 radius ${seek_Radius} "_"]}) /doevents flush YourKill
-
+  
   /if (${Following}) {
     /call AcquireFollow
   } else {
@@ -250,10 +250,6 @@ SUB get_lootSetting(invSlot, itemSlot)
 |		/echo ${Corpse.Item[${invSlot}].Name}		
 		/varset itemName ${Corpse.Item[${invSlot}].Name}
 		/if (${itemName.Find[:]}) /varset itemName ${itemName.Replace[:,;]}
-    /if (${itemName.Find[,]}) {
-      /call RemoveComma "${itemName}"
-      /varset itemName ${Macro.Return}
-    }
 		| Set item value
 		/varset itemValue ${Corpse.Item[${invSlot}].Value}
 		/varset itemValue ${If[${Bool[${itemValue.Left[${Math.Calc[${itemValue.Length} - 3].Int}]}]},${itemValue.Left[${Math.Calc[${itemValue.Length} - 3].Int}]}p,]}${If[${Bool[${itemValue.Mid[${Math.Calc[${itemValue.Length} - 2].Int}]}]},${itemValue.Mid[${Math.Calc[${itemValue.Length} - 2].Int}]}g,]}${If[${Bool[${itemValue.Mid[${Math.Calc[${itemValue.Length} - 1].Int}]}]},${itemValue.Mid[${Math.Calc[${itemValue.Length} - 1].Int}]}s,]}${If[${Bool[${itemValue.Right[1]}]},${itemValue.Right[1]}c,]}
@@ -274,10 +270,6 @@ SUB get_lootSetting(invSlot, itemSlot)
 		| Reset itemName if it contains a ':'.  ':'s cause errors when reading from the ini, because they act as a delimiter, just like '='s
 		/varset itemName ${Me.Inventory[${invSlot}].Item[${itemSlot}].Name}
 		/if (${itemName.Find[:]}) /varset itemName ${itemName.Replace[:,;]}
-    /if (${itemName.Find[,]}) {
-      /call RemoveComma "${itemName}"
-      /varset itemName ${Macro.Return}
-    }
 		| Set item value
 		/varset itemValue ${Me.Inventory[${invSlot}].Item[${itemSlot}].Value}
 		/varset itemValue ${If[${Bool[${itemValue.Left[${Math.Calc[${itemValue.Length} - 3].Int}]}]},${itemValue.Left[${Math.Calc[${itemValue.Length} - 3].Int}]}p,]}${If[${Bool[${itemValue.Mid[${Math.Calc[${itemValue.Length} - 2].Int}]}]},${itemValue.Mid[${Math.Calc[${itemValue.Length} - 2].Int}]}g,]}${If[${Bool[${itemValue.Mid[${Math.Calc[${itemValue.Length} - 1].Int}]}]},${itemValue.Mid[${Math.Calc[${itemValue.Length} - 1].Int}]}s,]}${If[${Bool[${itemValue.Right[1]}]},${itemValue.Right[1]}c,]}
@@ -342,10 +334,6 @@ SUB EVENT_checkLootSetting(line, itemName)
 /if (${Debug} || ${Debug_Loot}) /echo |- EVENT_checkLootSetting ==>
 	/declare itemToCheck string local ${itemName}
 	/if (${itemToCheck.Find[:]}) /varset itemToCheck ${itemToCheck.Replace[:,;]}
-  /if (${itemToCheck.Find[,]}) {
-    /call RemoveComma "${itemToCheck}"
-    /varset itemToCheck ${Macro.Return}
-  }
 	/declare i int local 1
 	
 	:check_Loot_Ini
@@ -371,10 +359,6 @@ SUB EVENT_updateLootSetting(line, ChatSender, itemName, iniSetting)
 	/if (${ChatSender.Equal[${Me.CleanName}]} || !${Defined[ChatSender]}) {
 		/declare itemToCheck string local ${itemName}
 		/if (${itemToCheck.Find[:]}) /varset itemToCheck ${itemToCheck.Replace[:,;]}
-    /if (${itemToCheck.Find[,]}) {
-      /call RemoveComma "${itemToCheck}"
-      /varset itemToCheck ${Macro.Return}
-    }
 		/declare i int local 1
 		
 		:check_Loot_Ini
